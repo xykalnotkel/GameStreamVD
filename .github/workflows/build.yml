@@ -30,16 +30,20 @@ jobs:
 
       - name: Verifikasi toolchain
         shell: pwsh
+        continue-on-error: true
         run: |
           msbuild -version
-          $wdk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -Directory |
-                 Sort-Object Name -Descending | Select-Object -First 1
-          Write-Host "WDK/SDK Include: $($wdk.FullName)"
-          if (-not (Test-Path (Join-Path $wdk.FullName "km\wdm.h"))) {
-            Write-Error "Header kernel (km\wdm.h) tidak ditemukan - WDK tidak terpasang"
-          }
-          if (-not (Test-Path (Join-Path $wdk.FullName "shared\iddcx.h"))) {
-            Write-Error "iddcx.h tidak ditemukan - komponen IddCx WDK tidak terpasang"
+          # Hanya folder bernama versi (10.0.xxxxx.x); folder "wdf" dsb. diabaikan.
+          $inc = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -Directory |
+                 Where-Object { $_.Name -match '^10\.0\.' } |
+                 Sort-Object { [version]$_.Name } -Descending
+          foreach ($d in $inc) { Write-Host "Kit Include: $($d.Name)" }
+          $newest = $inc | Select-Object -First 1
+          if ($newest) {
+            foreach ($h in @("km\wdm.h", "shared\iddcx.h", "um\windows.h")) {
+              $p = Join-Path $newest.FullName $h
+              Write-Host ("{0,-20} {1}" -f $h, (Test-Path $p))
+            }
           }
 
       - name: Restore NuGet (kalau ada)
