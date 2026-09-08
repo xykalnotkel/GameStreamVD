@@ -124,8 +124,9 @@ Write-Host "[sign] stampinf: mengisi macro INF (arch=$arch, UMDF=$UmdfVersion)"
 if ($LASTEXITCODE -ne 0) { throw "stampinf gagal (kode $LASTEXITCODE)" }
 
 Write-Host '[sign] hasil stamping:'
-foreach ($k in @('DriverVer', 'UmdfLibraryVersion', '[Standard')) {
-    $line = Select-String -Path $stamped -Pattern $k | Select-Object -First 1
+foreach ($k in @('DriverVer', 'UmdfLibraryVersion', 'Standard.NT')) {
+    # -SimpleMatch: nama section INF memakai '[' yang bukan regex sah.
+    $line = Select-String -Path $stamped -Pattern $k -SimpleMatch | Select-Object -First 1
     if ($line) { Write-Host ("        " + $line.Line.Trim()) }
 }
 
