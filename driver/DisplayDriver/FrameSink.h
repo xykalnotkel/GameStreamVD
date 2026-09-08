@@ -50,7 +50,7 @@ namespace Microsoft
 
             // Path cepat: dipanggil dari loop swap-chain. Tidak boleh blocking
             // lebih dari beberapa ratus mikrodetik.
-            void Present(_In_ IDXGIResource* AcquiredSurface, _In_ const DXGI_OUTDUPL_FRAME_INFO* MetaData);
+            void Present(_In_ IDXGIResource* AcquiredSurface, _In_ ID3D11DeviceContext* Context);
 
         private:
             bool EnsureStaging(_In_ ID3D11Device* Device, _In_ UINT Width, _In_ UINT Height);
