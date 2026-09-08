@@ -142,6 +142,14 @@ jobs:
             ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
           Write-Host "--- IddCx.h baris 508-535 ---"
           (Get-Content $hit.FullName)[507..534] | ForEach-Object { Write-Host $_ }
+          Write-Host "--- wudfwdm.h: STATUS_ yang didefinisikan ---"
+          $w = Get-ChildItem $root -Recurse -Filter wudfwdm.h -ErrorAction SilentlyContinue | Select-Object -First 1
+          Write-Host "wudfwdm.h = $($w.FullName)"
+          Select-String -Path $w.FullName -Pattern 'STATUS_' |
+            ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
+          Write-Host "--- corewrappers.h baris 630-682 ---"
+          $cw = Join-Path $root "winrt\wrl\wrappers\corewrappers.h"
+          (Get-Content $cw)[629..681] | ForEach-Object { Write-Host $_ }
           Write-Host "--- #define STATUS_WAIT_0 di seluruh kit ---"
           Get-ChildItem $root -Recurse -Filter *.h -ErrorAction SilentlyContinue |
             Select-String -Pattern '#define\s+STATUS_WAIT_0' -List |
