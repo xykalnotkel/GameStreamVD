@@ -53,6 +53,7 @@ jobs:
       #   A sukses, B gagal  -> masalahnya GsVirtual.h.
       #   dua-duanya sukses  -> masalahnya di Driver.h/Driver.cpp/FrameSink.
       - name: Ambil sampel Microsoft untuk pembanding
+        if: false
         continue-on-error: true
         shell: pwsh
         run: |
@@ -61,6 +62,7 @@ jobs:
           }
 
       - name: Probe A - driver UMDF minimal
+        if: false
         continue-on-error: true
         run: >
           msbuild ci-probe\ProbeA.vcxproj /t:Rebuild
@@ -70,6 +72,7 @@ jobs:
       # Sumber SAMA (ProbeA.cpp), konfigurasi proyek upstream apa adanya.
       # Kalau ini sukses sedangkan ProbeA gagal -> penyebabnya konfigurasi proyek.
       - name: Probe C - ProbeA.cpp dengan vcxproj upstream
+        if: false
         continue-on-error: true
         run: >
           msbuild ci-probe\UpstreamCfg.vcxproj /t:Rebuild
@@ -79,6 +82,7 @@ jobs:
       # Ulangi build sampel Microsoft dengan Rebuild (sebelumnya pakai Build) dan
       # pastikan DLL-nya benar-benar ada, supaya "sukses" tadi bukan palsu.
       - name: Probe D - IddSampleDriver asli (Rebuild + cek DLL)
+        if: false
         continue-on-error: true
         shell: pwsh
         run: |
