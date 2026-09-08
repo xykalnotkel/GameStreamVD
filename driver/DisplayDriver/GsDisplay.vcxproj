@@ -107,16 +107,6 @@
     <Driver_SpectreMitigation>Spectre</Driver_SpectreMitigation>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <!-- WDK menyalakan /WX untuk proyek driver. Untuk driver UMDF yang memakai
-       STL + wrl.h, header SDK sendiri menghasilkan warning (C4005 '_STD',
-       C4083 '_VCRUNTIME_DISABLED_WARNINGS') yang lalu jadi error C2220 dan
-       memicu cascade ratusan error palsu di cstdio/cstdlib. Dimatikan di sini;
-       nyalakan lagi setelah kode stabil. -->
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <TreatWarningAsError>false</TreatWarningAsError>
-    </ClCompile>
-  </ItemDefinitionGroup>
 
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>

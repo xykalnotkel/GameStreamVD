@@ -20,10 +20,12 @@ Environment:
 
 #pragma once
 
-#ifdef _MSC_VER
 #include <windows.h>
-#endif
-#include <string.h>
+
+// Jangan include <string.h> di sini: pada proyek UMDF, include C++ seperti
+// <string.h>/<new> diarahkan ke km\crt milik WDK dan bertabrakan dengan STL
+// MSVC (C2011 'std::bad_alloc' redefinition dkk). Semua operasi memori di
+// bawah ditulis manual.
 
 namespace Microsoft
 {
@@ -114,7 +116,10 @@ namespace Microsoft
                 return false;
             }
 
-            memset(pEdid, 0, 128);
+            for (int i = 0; i < 128; i++)
+            {
+                pEdid[i] = 0;
+            }
 
             // Header
             pEdid[0] = 0x00; pEdid[1] = 0xFF; pEdid[2] = 0xFF; pEdid[3] = 0xFF;

@@ -75,6 +75,19 @@ static const struct GsMonitorMode s_GsTargetModes[] =
 
 #pragma region helpers
 
+// memset/memcpy/memcmp dari <string.h> sengaja tidak dipakai di driver UMDF
+// ini: include C++ semacam itu diarahkan WDK ke km\crt dan bertabrakan dengan
+// STL MSVC (C2011 'std::bad_alloc' redefinition dkk).
+static inline void GsZeroMemory(_Out_writes_bytes_all_(Size) void* p, size_t Size)
+{
+    unsigned char* b = (unsigned char*)p;
+    for (size_t i = 0; i < Size; i++)
+    {
+        b[i] = 0;
+    }
+}
+
+
 static inline void FillSignalInfo(DISPLAYCONFIG_VIDEO_SIGNAL_INFO& Mode, DWORD Width, DWORD Height, DWORD VSync, bool bMonitorMode)
 {
     Mode.totalSize.cx = Mode.activeSize.cx = Width;
@@ -678,7 +691,10 @@ NTSTATUS IndirectDeviceContext::CreateMonitorAtSlot(
     // --- EDID ---
     if (Edid != nullptr && (EdidSize == 128 || EdidSize == 256))
     {
-        memcpy(info.Edid, Edid, EdidSize);
+        for (UINT i = 0; i < EdidSize && i < GsMonitorInfo::szEdidBlock; i++)
+        {
+            info.Edid[i] = Edid[i];
+        }
     }
     else if (!GsGenerateEdid(info.Edid, Width, Height, RefreshHz))
     {
@@ -763,7 +779,7 @@ NTSTATUS IndirectDeviceContext::CreateMonitorAtSlot(
 
 void IndirectDeviceContext::FillQueryInfo(_Out_ GSVD_QUERY_INFO_OUT* pOut)
 {
-    memset(pOut, 0, sizeof(*pOut));
+    GsZeroMemory(pOut, sizeof(*pOut));
     pOut->Version = GSVD_FRAME_VERSION;
     pOut->MaxMonitors = GSVD_MAX_MONITORS;
 
@@ -805,7 +821,7 @@ NTSTATUS IndirectDeviceContext::AddMonitor(_In_ const GSVD_ADD_MONITOR_IN* pIn, 
         return status;
     }
 
-    memset(pOut, 0, sizeof(*pOut));
+    GsZeroMemory(pOut, sizeof(*pOut));
     pOut->Slot = pIn->Slot;
     pOut->Width = width;
     pOut->Height = height;
@@ -845,7 +861,7 @@ NTSTATUS IndirectDeviceContext::GetFrameInfo(_In_ UINT Slot, _Out_ GSVD_FRAME_IN
         return STATUS_INVALID_PARAMETER;
     }
 
-    memset(pOut, 0, sizeof(*pOut));
+    GsZeroMemory(pOut, sizeof(*pOut));
     pOut->Slot = Slot;
     pOut->Connected = m_Monitors[Slot].InUse ? 1 : 0;
     if (pOut->Connected)
@@ -966,7 +982,18 @@ NTSTATUS GsDisplayParseMonitorDescription(const IDARG_IN_PARSEMONITORDESCRIPTION
             continue;
         }
 
-        if (memcmp(pInArgs->MonitorDescription.pData, info->Edid, GsMonitorInfo::szEdidBlock) != 0)
+        const BYTE* a = (const BYTE*)pInArgs->MonitorDescription.pData;
+        bool same = true;
+        for (size_t i = 0; i < GsMonitorInfo::szEdidBlock; i++)
+        {
+            if (a[i] != info->Edid[i])
+            {
+                same = false;
+                break;
+            }
+        }
+
+        if (!same)
         {
             continue;
         }

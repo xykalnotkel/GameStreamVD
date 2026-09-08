@@ -9,8 +9,9 @@ Environment:
 --*/
 
 #include "FrameSink.h"
-#include <strsafe.h>
-#include <new>
+
+// <strsafe.h> dan <new> sengaja tidak dipakai: keduanya menarik CRT user-mode
+// ke proyek UMDF dan memicu tabrakan header dengan km\crt milik WDK.
 
 using namespace Microsoft::WRL;
 
@@ -68,8 +69,8 @@ namespace Microsoft
 
             WCHAR sectionName[64];
             WCHAR eventName[64];
-            if (FAILED(StringCchPrintfW(sectionName, ARRAYSIZE(sectionName), GSVD_FRAME_SECTION_FMT, Slot)) ||
-                FAILED(StringCchPrintfW(eventName, ARRAYSIZE(eventName), GSVD_FRAME_EVENT_FMT, Slot)))
+            if (swprintf_s(sectionName, ARRAYSIZE(sectionName), GSVD_FRAME_SECTION_FMT, Slot) < 0 ||
+                swprintf_s(eventName, ARRAYSIZE(eventName), GSVD_FRAME_EVENT_FMT, Slot) < 0)
             {
                 return false;
             }
@@ -261,19 +262,18 @@ namespace Microsoft
             header->FrameSeq = seq;
             MemoryBarrier();
 
-            if (mapped.RowPitch == header->Stride)
+            // memcpy dihindari supaya tidak perlu <string.h> (lihat catatan di
+            // atas). Copy per baris memakai pointer volatile agar compiler tidak
+            // mengoptimalkan ulang urutan tulis terhadap MemoryBarrier.
+            const BYTE* src = (const BYTE*)mapped.pData;
+            const SIZE_T copyBytes = (mapped.RowPitch < header->Stride) ? mapped.RowPitch : header->Stride;
+            for (UINT row = 0; row < header->Height; ++row)
             {
-                memcpy(dest, mapped.pData, header->PixelSize);
-            }
-            else
-            {
-                const SIZE_T copyBytes = (mapped.RowPitch < header->Stride) ? mapped.RowPitch : header->Stride;
-                const BYTE* src = (const BYTE*)mapped.pData;
-                for (UINT row = 0; row < header->Height; ++row)
+                BYTE* d = dest + (SIZE_T)row * header->Stride;
+                const BYTE* s = src + (SIZE_T)row * mapped.RowPitch;
+                for (SIZE_T b = 0; b < copyBytes; ++b)
                 {
-                    memcpy(dest + (SIZE_T)row * header->Stride,
-                           src + (SIZE_T)row * mapped.RowPitch,
-                           copyBytes);
+                    d[b] = s[b];
                 }
             }
 
