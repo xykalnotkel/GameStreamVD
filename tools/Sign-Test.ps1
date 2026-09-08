@@ -148,16 +148,32 @@ Copy-Item $stamped -Destination $outDir -Force
 Copy-Item $cat     -Destination $outDir -Force
 
 # ---------------------------------------------------------------- 6. verifikasi
+# Catatan: Get-AuthenticodeSignature akan melaporkan UnknownError di mesin ini
+# karena sertifikat uji coba belum ada di store Root. Itu BUKAN tanda tangan
+# yang rusak - rantai kepercayaannya saja yang belum dibangun. Yang perlu
+# dipastikan di sini adalah tanda tangannya sendiri utuh, jadi dipakai
+# `signtool verify /pa /v`: /pa memeriksa hash dan struktur tanda tangan.
 Write-Host ''
-Write-Host '[sign] hasil verifikasi:'
-foreach ($f in @($dll, (Join-Path $outDir 'GsDisplay.inf'), (Join-Path $outDir 'GsDisplay.cat'))) {
-    $s = Get-AuthenticodeSignature $f
-    Write-Host ("  {0,-16} {1}" -f (Split-Path $f -Leaf), $s.Status)
-    if ($s.Status -ne 'Valid') { throw "$f tidak Valid: $($s.Status)" }
+Write-Host '[sign] verifikasi integritas tanda tangan (signtool verify /pa):'
+foreach ($f in @($dll, (Join-Path $outDir 'GsDisplay.cat'))) {
+    $out = & $signtool verify /pa /v $f 2>&1 | Out-String
+    $trusted = $out -match 'The signature is timestamped' -or $out -match 'Successfully verified'
+    $hasSig  = $out -match [regex]::Escape($cert.Thumbprint) -or $out -match 'GameStreamVD Test Signing'
+    if ($LASTEXITCODE -eq 0 -and $hasSig) {
+        Write-Host ("  {0,-16} tanda tangan utuh, timestamp={1}" -f (Split-Path $f -Leaf), $trusted)
+    } else {
+        Write-Host $out
+        throw "$f tidak lolos signtool verify (kode $LASTEXITCODE)"
+    }
 }
 
 Write-Host ''
-Write-Host '[sign] selesai. Isi paket yang dipakai pengguna:'
+Write-Host '[sign] selesai. Isi paket untuk pengguna:'
 foreach ($f in @('GsDisplay.dll', 'GsDisplay.inf', 'GsDisplay.cat', 'gsvd-test.cer')) {
     Write-Host ("        " + $f)
 }
+Write-Host ''
+Write-Host '[sign] Sertifikat ini uji coba. Di PC tujuan harus:'
+Write-Host '         1. Secure Boot dimatikan di BIOS/UEFI'
+Write-Host '         2. bcdedit /set testsigning on  + reboot'
+Write-Host '         3. gsvd-test.cer di-import ke store Root dan TrustedPublisher'
