@@ -23,10 +23,8 @@
     <ClCompile Include="..\driver\DisplayDriver\FrameSink.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Driver.h" />
     <ClInclude Include="..\driver\DisplayDriver\Trace.h" />
-    <ClInclude Include="..\driver\DisplayDriver\Driver.h" />
-    <ClInclude Include="..\driver\DisplayDriver\Edid.h" />
-    <ClInclude Include="..\driver\DisplayDriver\FrameSink.h" />
   </ItemGroup>
   <ItemGroup>
     
@@ -150,6 +148,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <EnablePREfast>true</EnablePREfast>
       <PreprocessorDefinitions>_WIN64;_AMD64_;AMD64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\include;..\driver\DisplayDriver;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/D_ATL_NO_WIN_SUPPORT /DUMDF_DRIVER /DIDDCX_VERSION_MAJOR=1 /DIDDCX_VERSION_MINOR=6 /DIDDCX_MINIMUM_VERSION_REQUIRED=4 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
