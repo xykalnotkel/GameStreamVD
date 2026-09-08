@@ -25,10 +25,16 @@
 
 #ifdef _KERNEL_MODE
 #include <ntddk.h>
+#elif defined(GSVD_NO_WINDOWS_HEADERS)
+// Dipakai oleh unit test portabel (lihat tests/).
 #else
 #include <windows.h>
 // CTL_CODE / FILE_DEVICE_UNKNOWN / METHOD_BUFFERED / FILE_ANY_ACCESS tinggal di
-// devioctl.h pada SDK modern, dan TIDAK otomatis ikut lewat windows.h.
+// devioctl.h pada SDK modern dan TIDAK otomatis ikut lewat windows.h.
+//
+// PENTING: header ini juga dipakai driver UMDF. Jangan tarik header user-mode
+// lain ke sini - urutannya bisa bentrok dengan wudfwdm.h dan memicu C4005 yang
+// jadi error karena driver di-build dengan /WX.
 #include <devioctl.h>
 #endif
 

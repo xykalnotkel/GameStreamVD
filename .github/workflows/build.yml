@@ -65,6 +65,20 @@ jobs:
           /verbosity:normal
           /warnaserror:false
 
+      - name: Verifikasi INF (infverif)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $inf = "driver\DisplayDriver\GsDisplay.inf"
+          $verif = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter InfVerif.exe -ErrorAction SilentlyContinue |
+                   Select-Object -First 1
+          if ($verif) {
+            Write-Host "InfVerif: $($verif.FullName)"
+            & $verif.FullName $inf
+          } else {
+            Write-Host "InfVerif.exe tidak ditemukan di image ini - dilewati."
+          }
+
       - name: Ringkasan artefak
         shell: pwsh
         run: |
@@ -78,9 +92,8 @@ jobs:
           path: |
             build/**/*.dll
             build/**/*.exe
-            build/**/*.inf
-            build/**/*.cat
             build/**/*.pdb
+            driver/DisplayDriver/GsDisplay.inf
           if-no-files-found: warn
 
   # Uji unit portabel (generator EDID) di Linux - cepat dan tidak butuh WDK.

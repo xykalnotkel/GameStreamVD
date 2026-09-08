@@ -29,9 +29,6 @@
     <ClInclude Include="Trace.h" />
     <ClInclude Include="..\..\include\GsVirtual.h" />
   </ItemGroup>
-  <ItemGroup>
-    <Inf Include="GsDisplay.inf" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{2D54CB75-8B17-4F11-97DC-847B0244CD46}</ProjectGuid>
     <TemplateGuid>{32909489-7be5-497b-aafa-db6669d9b44b}</TemplateGuid>

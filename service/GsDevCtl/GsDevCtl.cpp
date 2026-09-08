@@ -21,7 +21,6 @@
 --*/
 
 #include <windows.h>
-#include <initguid.h>
 #include <swdevice.h>
 #include <cfgmgr32.h>
 #include <stdio.h>
@@ -31,7 +30,15 @@
 
 #include "GsVirtual.h"
 
-DEFINE_GUID(GUID_DEVINTERFACE_GSVD_DISPLAY, GSVD_DISPLAY_INTERFACE_GUID);
+/* GUID device interface driver. Sengaja diurai dari string lewat IIDFromString,
+   bukan DEFINE_GUID + macro, supaya tidak bergantung urutan include guiddef.h /
+   initguid.h di berbagai SDK. */
+#define GSVD_DISPLAY_INTERFACE_STRING L"{a4f2f254-ed6f-498e-b497-2f36a2a893c6}"
+
+static bool GsDisplayInterfaceGuid(GUID* pGuid)
+{
+    return SUCCEEDED(IIDFromString(GSVD_DISPLAY_INTERFACE_STRING, pGuid));
+}
 
 #define GSVD_SW_DEVICE_ID   L"GsVDisplay"
 #define GSVD_SW_INSTANCE    L"GsVDisplay"
@@ -104,8 +111,15 @@ static HSWDEVICE CreateVirtualDisplayDevice()
 static bool FindDeviceInterfacePath(WCHAR* path, DWORD pathChars)
 {
     ULONG length = 0;
+    GUID ifGuid;
+    if (!GsDisplayInterfaceGuid(&ifGuid))
+    {
+        printf("[GALAT] IIDFromString gagal untuk GUID device interface.\n");
+        return false;
+    }
+
     CONFIGRET cr = CM_Get_Device_Interface_List_SizeW(
-        &length, (LPGUID)&GUID_DEVINTERFACE_GSVD_DISPLAY, nullptr, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+        &length, &ifGuid, nullptr, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
     if (cr != CR_SUCCESS || length <= 1)
     {
         printf("[GALAT] Device interface belum ada (CONFIGRET 0x%X). Driver belum termuat?\n", cr);
@@ -118,7 +132,7 @@ static bool FindDeviceInterfacePath(WCHAR* path, DWORD pathChars)
         return false;
     }
 
-    cr = CM_Get_Device_Interface_ListW((LPGUID)&GUID_DEVINTERFACE_GSVD_DISPLAY, nullptr,
+    cr = CM_Get_Device_Interface_ListW(&ifGuid, nullptr,
                                        list, length, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
     if (cr != CR_SUCCESS)
     {

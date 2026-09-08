@@ -139,9 +139,14 @@ EVT_WDF_IO_QUEUE_EVT_IO_DEVICE_CONTROL GsDisplayIoDeviceControl;
 static IndirectDeviceContext* g_pDeviceContext = nullptr;
 
 // GUID device interface yang dipakai aplikasi untuk membuka driver ini.
-// {A4F2F254-ED6F-498E-B497-2F36A2A893C6}
-DEFINE_GUID(GUID_DEVINTERFACE_GSVD_DISPLAY,
-    0xa4f2f254, 0xed6f, 0x498e, 0xb4, 0x97, 0x2f, 0x36, 0xa2, 0xa8, 0x93, 0xc6);
+// Sengaja diurai dari string lewat IIDFromString, bukan DEFINE_GUID + macro,
+// supaya tidak bergantung urutan include guiddef.h / initguid.h antar SDK.
+#define GSVD_DISPLAY_INTERFACE_STRING L"{a4f2f254-ed6f-498e-b497-2f36a2a893c6}"
+
+static bool GsGetDisplayInterfaceGuid(GUID* pGuid)
+{
+    return SUCCEEDED(IIDFromString(GSVD_DISPLAY_INTERFACE_STRING, pGuid));
+}
 
 struct IndirectDeviceContextWrapper
 {
@@ -262,7 +267,13 @@ NTSTATUS GsDisplayDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDeviceInit)
 
     // Device interface supaya aplikasi bisa menemukan driver tanpa menebak nama
     // device (CM_Get_Device_Interface_List + CreateFile).
-    Status = WdfDeviceCreateDeviceInterface(Device, &GUID_DEVINTERFACE_GSVD_DISPLAY, nullptr);
+    GUID interfaceGuid;
+    if (!GsGetDisplayInterfaceGuid(&interfaceGuid))
+    {
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    Status = WdfDeviceCreateDeviceInterface(Device, &interfaceGuid, nullptr);
     if (!NT_SUCCESS(Status))
     {
         return Status;
