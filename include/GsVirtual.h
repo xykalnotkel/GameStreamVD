@@ -27,6 +27,9 @@
 #include <ntddk.h>
 #else
 #include <windows.h>
+// CTL_CODE / FILE_DEVICE_UNKNOWN / METHOD_BUFFERED / FILE_ANY_ACCESS tinggal di
+// devioctl.h pada SDK modern, dan TIDAK otomatis ikut lewat windows.h.
+#include <devioctl.h>
 #endif
 
 /* ========================================================================== */

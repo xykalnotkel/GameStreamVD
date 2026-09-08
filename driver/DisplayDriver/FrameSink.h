@@ -27,7 +27,7 @@ Environment:
 #include <wrl.h>
 #include <memory>
 
-#include "../include/GsVirtual.h"
+#include "GsVirtual.h"
 
 namespace Microsoft
 {

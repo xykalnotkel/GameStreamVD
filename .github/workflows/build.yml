@@ -59,6 +59,7 @@ jobs:
           /p:Configuration=${{ matrix.configuration }}
           /p:Platform=${{ matrix.platform }}
           /p:SignMode=Off
+          /p:InfVerifEnabled=false
           /m
           /nologo
           /verbosity:normal

@@ -29,7 +29,7 @@
 #include <string.h>
 #include <wchar.h>
 
-#include "../../include/GsVirtual.h"
+#include "GsVirtual.h"
 
 DEFINE_GUID(GUID_DEVINTERFACE_GSVD_DISPLAY, GSVD_DISPLAY_INTERFACE_GUID);
 

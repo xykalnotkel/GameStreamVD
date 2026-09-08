@@ -15,7 +15,7 @@
 #include <memory>
 #include <vector>
 
-#include "../include/GsVirtual.h"
+#include "GsVirtual.h"
 #include "Trace.h"
 #include "Edid.h"
 #include "FrameSink.h"

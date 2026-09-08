@@ -20,10 +20,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Driver.cpp" />
+    <ClCompile Include="FrameSink.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Driver.h" />
+    <ClInclude Include="Edid.h" />
+    <ClInclude Include="FrameSink.h" />
     <ClInclude Include="Trace.h" />
+    <ClInclude Include="..\..\include\GsVirtual.h" />
   </ItemGroup>
   <ItemGroup>
     <Inf Include="GsDisplay.inf" />
@@ -56,6 +60,13 @@
     <PlatformToolset>WindowsUserModeDriver10.0</PlatformToolset>
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <DriverTargetPlatform>Universal</DriverTargetPlatform>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- GsVirtual.h ada di include/ bersama-sama dengan driver audio nanti. -->
+    <IncludePath>$(ProjectDir)..\..\include;$(IncludePath)</IncludePath>
+    <!-- InfVerif.dll tidak selalu ada di image CI; verifikasi INF dijalankan
+         terpisah oleh inf2cat pada proyek package. -->
+    <InfVerifEnabled>false</InfVerifEnabled>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
