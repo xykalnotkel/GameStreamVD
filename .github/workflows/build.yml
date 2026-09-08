@@ -129,6 +129,8 @@ jobs:
           Write-Host "--- IddCxMonitorDeparture ---"
           Select-String -Path $hit.FullName -Pattern 'MonitorDeparture|MONITORDEPARTURE' |
             ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
+          Write-Host "--- IddCx.h baris 508-535 ---"
+          (Get-Content $hit.FullName)[507..534] | ForEach-Object { Write-Host $_ }
           Write-Host "--- #define STATUS_WAIT_0 di seluruh kit ---"
           Get-ChildItem $root -Recurse -Filter *.h -ErrorAction SilentlyContinue |
             Select-String -Pattern '#define\s+STATUS_WAIT_0' -List |
