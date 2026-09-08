@@ -145,7 +145,7 @@ EVT_IDD_CX_MONITOR_QUERY_TARGET_MODES GsDisplayMonitorQueryModes;
 EVT_IDD_CX_MONITOR_ASSIGN_SWAPCHAIN GsDisplayMonitorAssignSwapChain;
 EVT_IDD_CX_MONITOR_UNASSIGN_SWAPCHAIN GsDisplayMonitorUnassignSwapChain;
 
-EVT_WDF_IO_QUEUE_EVT_IO_DEVICE_CONTROL GsDisplayIoDeviceControl;
+EVT_IDD_CX_DEVICE_IO_CONTROL GsDisplayIoDeviceControl;
 
 // Satu host UMDF hanya memuat satu instance driver, jadi pointer global ini
 // aman dan memudahkan callback yang tidak menerima context (mis. parse EDID).
@@ -310,7 +310,7 @@ NTSTATUS GsDisplayDeviceAdd(WDFDRIVER Driver, PWDFDEVICE_INIT pDeviceInit)
 
 _Use_decl_annotations_
 VOID GsDisplayIoDeviceControl(
-    WDFQUEUE Queue,
+    WDFDEVICE Device,
     WDFREQUEST Request,
     size_t OutputBufferLength,
     size_t InputBufferLength,
@@ -319,8 +319,7 @@ VOID GsDisplayIoDeviceControl(
     UNREFERENCED_PARAMETER(OutputBufferLength);
     UNREFERENCED_PARAMETER(InputBufferLength);
 
-    WDFDEVICE device = WdfIoQueueGetDevice(Queue);
-    auto* pWrapper = WdfObjectGet_IndirectDeviceContextWrapper(device);
+    auto* pWrapper = WdfObjectGet_IndirectDeviceContextWrapper(Device);
     auto* pContext = (pWrapper != nullptr) ? pWrapper->pContext : nullptr;
     if (pContext == nullptr)
     {
@@ -848,8 +847,7 @@ NTSTATUS IndirectDeviceContext::RemoveMonitor(_In_ UINT Slot)
     }
 
     // Beri tahu OS monitor dicabut, baru hapus object-nya.
-    IDARG_OUT_MONITORDEPARTURE Departure = {};
-    NTSTATUS status = IddCxMonitorDeparture(monitor, &Departure);
+    NTSTATUS status = IddCxMonitorDeparture(monitor);
     WdfObjectDelete(monitor);
     return status;
 }
