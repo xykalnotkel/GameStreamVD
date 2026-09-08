@@ -27,7 +27,9 @@
     <ClInclude Include="Edid.h" />
     <ClInclude Include="FrameSink.h" />
     <ClInclude Include="Trace.h" />
-    <ClInclude Include="..\..\include\GsVirtual.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="IddSampleDriver.inf" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{2D54CB75-8B17-4F11-97DC-847B0244CD46}</ProjectGuid>
@@ -58,12 +60,12 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <DriverTargetPlatform>Universal</DriverTargetPlatform>
   </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup>
-    <!-- InfVerif.dll tidak selalu ada di image CI; verifikasi INF dijalankan
-         terpisah oleh inf2cat pada proyek package. -->
+    <!-- InfVerif.dll tidak ada di image windows-2022; verifikasi INF
+         dijalankan terpisah oleh InfVerif.exe di workflow. -->
     <InfVerifEnabled>false</InfVerifEnabled>
   </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <TargetVersion>Windows10</TargetVersion>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -105,7 +107,6 @@
     <Driver_SpectreMitigation>Spectre</Driver_SpectreMitigation>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
