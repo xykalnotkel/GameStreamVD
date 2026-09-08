@@ -148,23 +148,33 @@ Copy-Item $stamped -Destination $outDir -Force
 Copy-Item $cat     -Destination $outDir -Force
 
 # ---------------------------------------------------------------- 6. verifikasi
-# Catatan: Get-AuthenticodeSignature akan melaporkan UnknownError di mesin ini
-# karena sertifikat uji coba belum ada di store Root. Itu BUKAN tanda tangan
-# yang rusak - rantai kepercayaannya saja yang belum dibangun. Yang perlu
-# dipastikan di sini adalah tanda tangannya sendiri utuh, jadi dipakai
-# `signtool verify /pa /v`: /pa memeriksa hash dan struktur tanda tangan.
+# `signtool verify /pa` ikut memvalidasi rantai sertifikat, dan sertifikat uji
+# coba belum dipercaya di mesin ini. Jadi sertifikat dipasang dulu ke Root dan
+# TrustedPublisher - persis yang dilakukan install.bat di PC pengguna - supaya
+# hasil verifikasi di sini mencerminkan keadaan setelah instalasi.
 Write-Host ''
-Write-Host '[sign] verifikasi integritas tanda tangan (signtool verify /pa):'
+Write-Host '[sign] memasang sertifikat ke store Root + TrustedPublisher (untuk verifikasi)'
+foreach ($store in @('Root', 'TrustedPublisher')) {
+    Import-Certificate -FilePath $cerOut `
+        -CertStoreLocation "Cert:\LocalMachine\$store" | Out-Null
+}
+
+Write-Host '[sign] verifikasi (signtool verify /pa /all):'
 foreach ($f in @($dll, (Join-Path $outDir 'GsDisplay.cat'))) {
-    $out = & $signtool verify /pa /v $f 2>&1 | Out-String
-    $trusted = $out -match 'The signature is timestamped' -or $out -match 'Successfully verified'
-    $hasSig  = $out -match [regex]::Escape($cert.Thumbprint) -or $out -match 'GameStreamVD Test Signing'
-    if ($LASTEXITCODE -eq 0 -and $hasSig) {
-        Write-Host ("  {0,-16} tanda tangan utuh, timestamp={1}" -f (Split-Path $f -Leaf), $trusted)
-    } else {
+    $out = & $signtool verify /pa /all /v $f 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
         Write-Host $out
         throw "$f tidak lolos signtool verify (kode $LASTEXITCODE)"
     }
+    $ts = if ($out -match 'The signature is timestamped') { 'ya' } else { 'tidak' }
+    Write-Host ("  {0,-16} Valid, timestamped={1}" -f (Split-Path $f -Leaf), $ts)
+}
+
+Write-Host '[sign] melepas sertifikat dari store runner'
+foreach ($store in @('Root', 'TrustedPublisher')) {
+    Get-ChildItem "Cert:\LocalMachine\$store" |
+        Where-Object { $_.Thumbprint -eq $cert.Thumbprint } |
+        Remove-Item -Force
 }
 
 Write-Host ''
