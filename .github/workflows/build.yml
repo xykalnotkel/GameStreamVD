@@ -89,6 +89,15 @@ jobs:
           }
           if (-not $ok) { throw "Ada keluaran build yang tidak dihasilkan." }
 
+      # Driver UMDF tanpa tanda tangan ditolak Windows x64 (Device Manager
+      # Code 52) dan monitor tidak akan pernah muncul. Build di atas memakai
+      # /p:SignMode=Off, jadi penandatanganan dilakukan di sini.
+      - name: Tanda tangani dengan sertifikat uji coba
+        shell: pwsh
+        run: |
+          .\tools\Sign-Test.ps1 -Configuration ${{ matrix.configuration }} `
+                                -Platform ${{ matrix.platform }}
+
       - name: Upload artefak
         uses: actions/upload-artifact@v4
         with:
@@ -96,6 +105,8 @@ jobs:
           path: |
             x64/**/*.dll
             x64/**/*.pdb
+            x64/**/*.cat
+            x64/**/gsvd-test.cer
             build/**/*.exe
             build/**/*.pdb
             driver/DisplayDriver/GsDisplay.inf

@@ -1,0 +1,141 @@
+<#
+.SYNOPSIS
+    Menandatangani driver GameStreamVD dengan sertifikat uji coba.
+
+.DESCRIPTION
+    Dipanggil oleh GitHub Actions (tools\Sign-Test.ps1 dijalankan dari root repo).
+    Bisa juga dijalankan manual di mesin Windows yang punya WDK:
+
+        powershell -ExecutionPolicy Bypass -File tools\Sign-Test.ps1 -Configuration Release
+
+    Yang dilakukan:
+      1. Buat sertifikat self-signed untuk CodeSigningCert (atau pakai yang ada).
+      2. Tandatangani GsDisplay.dll.
+      3. Buat katalog (GsDisplay.cat) dengan inf2cat, lalu tandatangani.
+      4. Ekspor sertifikat ke gsvd-test.cer supaya pengguna bisa meng-import-nya.
+
+    Ini SERTIFIKAT UJI COBA. Hasilnya hanya bisa di-load di PC yang:
+      * Secure Boot-nya dimatikan, DAN
+      * `bcdedit /set testsigning on` sudah dijalankan + reboot, DAN
+      * gsvd-test.cer sudah di-import ke store Root dan TrustedPublisher.
+
+    Untuk distribusi ke pengguna umum butuh sertifikat EV + pengesahan
+    Microsoft (attestation signing) lewat Windows Hardware Dev Center.
+#>
+
+param(
+    [ValidateSet('Release', 'Debug')]
+    [string]$Configuration = 'Release',
+
+    [string]$Platform = 'x64',
+
+    [string]$Subject = 'CN=GameStreamVD Test Signing'
+)
+
+$ErrorActionPreference = 'Stop'
+
+$root     = Split-Path -Parent $PSScriptRoot
+$outDir   = Join-Path $root "$Platform\$Configuration"
+$dll      = Join-Path $outDir 'GsDisplay.dll'
+$inf      = Join-Path $root 'driver\DisplayDriver\GsDisplay.inf'
+$cerOut   = Join-Path $outDir 'gsvd-test.cer'
+
+if (-not (Test-Path $dll)) { throw "DLL belum di-build: $dll" }
+if (-not (Test-Path $inf)) { throw "INF tidak ditemukan: $inf" }
+
+# ---------------------------------------------------------------- 1. sertifikat
+$cert = Get-ChildItem Cert:\CurrentUser\My |
+        Where-Object { $_.Subject -eq $Subject } |
+        Select-Object -First 1
+
+if (-not $cert) {
+    Write-Host "[sign] membuat sertifikat uji coba: $Subject"
+    $cert = New-SelfSignedCertificate `
+        -Type CodeSigningCert `
+        -Subject $Subject `
+        -CertStoreLocation Cert:\CurrentUser\My `
+        -HashAlgorithm SHA256 `
+        -KeyUsage DigitalSignature `
+        -KeyExportPolicy Exportable `
+        -NotAfter (Get-Date).AddYears(10)
+} else {
+    Write-Host "[sign] memakai sertifikat yang sudah ada: $($cert.Thumbprint)"
+}
+
+Export-Certificate -Cert $cert -FilePath $cerOut -Type CERT | Out-Null
+Write-Host "[sign] sertifikat diekspor ke $cerOut"
+
+# ---------------------------------------------------------------- 2. cari perkakas
+$kitBin = 'C:\Program Files (x86)\Windows Kits\10\bin'
+
+function Find-KitTool {
+    param([string]$Name)
+    if (-not (Test-Path $kitBin)) { return $null }
+    # Folder versi saja (10.0.xxxxx.x); "wdf" dsb. diabaikan.
+    $dirs = Get-ChildItem $kitBin -Directory |
+            Where-Object { $_.Name -match '^10\.0\.' } |
+            Sort-Object { [version]$_.Name } -Descending
+    foreach ($d in $dirs) {
+        $p = Join-Path $d.FullName "$Platform\$Name"
+        if (Test-Path $p) { return $p }
+    }
+    # Fallback: arsitektur apa pun.
+    return Get-ChildItem $kitBin -Recurse -Filter $Name -ErrorAction SilentlyContinue |
+           Select-Object -First 1 -ExpandProperty FullName
+}
+
+$signtool = Find-KitTool 'signtool.exe'
+if (-not $signtool) { throw 'signtool.exe tidak ditemukan - install WDK atau Windows SDK.' }
+Write-Host "[sign] signtool: $signtool"
+
+$inf2cat = Find-KitTool 'inf2cat.exe'
+if ($inf2cat) { Write-Host "[sign] inf2cat : $inf2cat" }
+else          { Write-Host '[sign] inf2cat tidak ada - katalog dilewati, INF ditandatangani langsung.' }
+
+# ---------------------------------------------------------------- 3. tandatangani DLL
+Write-Host "[sign] menandatangani $dll"
+& $signtool sign /v /sha1 $cert.Thumbprint /fd sha256 /t http://timestamp.digicert.com $dll
+if ($LASTEXITCODE -ne 0) { throw "signtool gagal untuk DLL (kode $LASTEXITCODE)" }
+
+# ---------------------------------------------------------------- 4. katalog + INF
+if ($inf2cat) {
+    # inf2cat membaca INF lalu menghitung hash semua berkas yang dirujuknya,
+    # jadi DLL harus sudah ditandatangani dan berada di folder yang sama.
+    $stage = Join-Path $outDir 'package'
+    New-Item -ItemType Directory -Force -Path $stage | Out-Null
+    Copy-Item $dll -Destination $stage -Force
+    Copy-Item $inf -Destination $stage -Force
+
+    Write-Host "[sign] membuat katalog di $stage"
+    & $inf2cat /driver:$stage /os:10_X64 /verbose
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "inf2cat gagal (kode $LASTEXITCODE) - lanjut menandatangani INF langsung."
+    } else {
+        $cat = Join-Path $stage 'GsDisplay.cat'
+        if (Test-Path $cat) {
+            & $signtool sign /v /sha1 $cert.Thumbprint /fd sha256 /t http://timestamp.digicert.com $cat
+            if ($LASTEXITCODE -ne 0) { throw "signtool gagal untuk katalog (kode $LASTEXITCODE)" }
+            Copy-Item $cat -Destination $outDir -Force
+            Write-Host "[sign] katalog: $outDir\GsDisplay.cat"
+        }
+    }
+}
+
+Write-Host "[sign] menandatangani INF"
+& $signtool sign /v /sha1 $cert.Thumbprint /fd sha256 $inf
+if ($LASTEXITCODE -ne 0) { throw "signtool gagal untuk INF (kode $LASTEXITCODE)" }
+
+Copy-Item $inf -Destination $outDir -Force
+
+# ---------------------------------------------------------------- 5. verifikasi
+Write-Host ''
+Write-Host '[sign] hasil verifikasi:'
+foreach ($f in @($dll, $inf, (Join-Path $outDir 'GsDisplay.cat'))) {
+    if (-not (Test-Path $f)) { continue }
+    $s = Get-AuthenticodeSignature $f
+    Write-Host ("  {0,-16} {1}" -f (Split-Path $f -Leaf), $s.Status)
+    if ($s.Status -ne 'Valid') { throw "$f tidak Valid: $($s.Status)" }
+}
+
+Write-Host ''
+Write-Host '[sign] selesai.'
