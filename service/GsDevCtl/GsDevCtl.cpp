@@ -21,6 +21,9 @@
 --*/
 
 #include <windows.h>
+// IIDFromString ada di objbase.h; WIN32_LEAN_AND_MEAN membuatnya tidak ikut
+// lewat windows.h.
+#include <objbase.h>
 #include <swdevice.h>
 #include <cfgmgr32.h>
 #include <stdio.h>

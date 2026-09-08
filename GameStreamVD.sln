@@ -7,6 +7,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GsDisplay", "driver\Display
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GsDevCtl", "service\GsDevCtl\GsDevCtl.vcxproj", "{7B1E5A2C-9D44-4C6E-9C1A-2E5B8F3D6A01}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ProbeA", "ci-probe\ProbeA.vcxproj", "{A1000001-0000-4000-8000-0000000000A1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ProbeB", "ci-probe\ProbeB.vcxproj", "{A1000002-0000-4000-8000-0000000000A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +25,14 @@ Global
 		{7B1E5A2C-9D44-4C6E-9C1A-2E5B8F3D6A01}.Debug|x64.Build.0 = Debug|x64
 		{7B1E5A2C-9D44-4C6E-9C1A-2E5B8F3D6A01}.Release|x64.ActiveCfg = Release|x64
 		{7B1E5A2C-9D44-4C6E-9C1A-2E5B8F3D6A01}.Release|x64.Build.0 = Release|x64
+		{A1000001-0000-4000-8000-0000000000A1}.Debug|x64.ActiveCfg = Debug|x64
+		{A1000001-0000-4000-8000-0000000000A1}.Debug|x64.Build.0 = Debug|x64
+		{A1000001-0000-4000-8000-0000000000A1}.Release|x64.ActiveCfg = Release|x64
+		{A1000001-0000-4000-8000-0000000000A1}.Release|x64.Build.0 = Release|x64
+		{A1000002-0000-4000-8000-0000000000A2}.Debug|x64.ActiveCfg = Debug|x64
+		{A1000002-0000-4000-8000-0000000000A2}.Debug|x64.Build.0 = Debug|x64
+		{A1000002-0000-4000-8000-0000000000A2}.Release|x64.ActiveCfg = Release|x64
+		{A1000002-0000-4000-8000-0000000000A2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

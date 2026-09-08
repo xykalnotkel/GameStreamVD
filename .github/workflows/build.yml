@@ -46,33 +46,28 @@ jobs:
             }
           }
 
-      # ---- DIAGNOSTIK SEMENTARA -------------------------------------------
-      # Error C2011/C2382/C2873 (km\crt\new vs MSVC STL) dan C2065 STATUS_WAIT_0
-      # menunjukkan tabrakan header kernel vs user-mode. Untuk tahu apakah ini
-      # bawaan proyek/env atau akibat perubahan kita, build sampel Microsoft
-      # asli apa adanya, dan petakan siapa yang menarik km\crt\new.
-      - name: Diagnosa A - build IddSampleDriver asli
-        shell: pwsh
+      # ---- EKSPERIMEN: pisahkan penyebab tabrakan header -------------------
+      # ProbeA = driver UMDF minimal, tanpa header proyek apa pun.
+      # ProbeB = ProbeA + GsVirtual.h pada posisi yang sama seperti Driver.h.
+      #   A gagal            -> masalah konfigurasi proyek / environment.
+      #   A sukses, B gagal  -> masalahnya GsVirtual.h.
+      #   dua-duanya sukses  -> masalahnya di Driver.h/Driver.cpp/FrameSink.
+      - name: Probe A - driver UMDF minimal
         continue-on-error: true
-        run: |
-          git clone --depth 1 https://github.com/microsoft/Windows-driver-samples.git D:\wds
-          msbuild D:\wds\video\IndirectDisplay\IddSampleDriver.sln `
-            /t:Build /p:Configuration=Release /p:Platform=x64 `
-            /p:SignMode=Off /p:InfVerifEnabled=false /m /nologo /verbosity:minimal
-          Write-Host "EXITCODE Sampel Asli = $LASTEXITCODE"
+        run: >
+          msbuild ci-probe\ProbeA.vcxproj /t:Rebuild
+          /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
+          /p:InfVerifEnabled=false /nologo /verbosity:minimal
 
-      - name: Diagnosa B - rantai include Driver.cpp
-        shell: pwsh
+      - name: Probe B - minimal + GsVirtual.h
         continue-on-error: true
-        working-directory: driver\DisplayDriver
-        run: |
-          # Cetak baris cl.exe asli dari msbuild, lalu jalankan ulang dengan
-          # /showIncludes supaya terlihat siapa yang menarik km\crt\new.
-          msbuild GsDisplay.vcxproj /t:ClCompile /p:Configuration=Release /p:Platform=x64 `
-            /p:SignMode=Off /p:InfVerifEnabled=false /v:detailed /nologo 2>&1 |
-            Select-String -Pattern 'CL\.exe' | Select-Object -First 1
+        run: >
+          msbuild ci-probe\ProbeB.vcxproj /t:Rebuild
+          /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
+          /p:InfVerifEnabled=false /nologo /verbosity:minimal
 
-      # ---- AKHIR DIAGNOSTIK -----------------------------------------------
+      # ---- AKHIR EKSPERIMEN -----------------------------------------------
+
 
       - name: Restore NuGet (kalau ada)
         shell: pwsh
