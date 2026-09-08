@@ -1,0 +1,41 @@
+# Build output
+build/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+ARM64/
+*.user
+*.suo
+.vs/
+*.VC.db
+*.VC.opendb
+
+# WDK / driver build artefak
+*.log
+*.tlog
+*.lastbuildstate
+*.idb
+*.ipdb
+*.iobj
+*.pch
+Package/
+*.etl
+*.tmh
+
+# Artefak uji lokal
+tests/test_edid
+tests/t2
+tests/t3
+tests/t4
+tests/probe
+
+.bak/
+.newblock.txt
+
+# Jangan pernah commit kredensial
+*.pfx
+*.cer
+*.env
+uploads/
+secrets*

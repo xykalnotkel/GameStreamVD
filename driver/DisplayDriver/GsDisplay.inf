@@ -1,0 +1,79 @@
+;
+; GsDisplay.inf - GameStreamVD virtual display (IddCx / UMDF)
+;
+
+[Version]
+PnpLockDown=1
+Signature="$Windows NT$"
+Class=Display
+ClassGuid={4D36E968-E325-11CE-BFC1-08002BE10318}
+Provider=%ManufacturerName%
+CatalogFile=GsDisplay.cat
+DriverVer= ; diisi otomatis oleh stampinf saat build
+
+[DestinationDirs]
+UMDriverCopy=12,UMDF
+
+[SourceDisksNames]
+1 = %DiskName%
+
+[SourceDisksFiles]
+GsDisplay.dll=1
+
+; ================= Device install =================
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$.10.0...22000
+
+[Standard.NT$ARCH$.10.0...22000]
+%DeviceName%=GsDisplay_Install, Root\GsVDisplay
+%DeviceName%=GsDisplay_Install, GsVDisplay
+
+[GsDisplay_Install.NT]
+Include=WUDFRD.inf
+Needs=WUDFRD.NT
+CopyFiles=UMDriverCopy
+
+[GsDisplay_Install.NT.hw]
+Include=WUDFRD.inf
+Needs=WUDFRD.NT.HW
+AddReg=GsDisplay_DeviceSettings
+AddInterface={A4F2F254-ED6F-498E-B497-2F36A2A893C6},,GsDisplay_Interface
+
+[GsDisplay_DeviceSettings]
+HKR,,"UpperFilters",%REG_MULTI_SZ%,"IndirectKmd"
+HKR,"WUDF","DeviceGroupId",%REG_SZ%,"GsVDisplayGroup"
+
+; Device interface supaya aplikasi bisa menemukan driver tanpa menebak nama.
+[GsDisplay_Interface]
+AddProperty=GsDisplay_InterfaceProps
+
+[GsDisplay_InterfaceProps]
+{A4F2F254-ED6F-498E-B497-2F36A2A893C6},1,7,"GameStream Virtual Display"
+
+[GsDisplay_Install.NT.Services]
+Include=WUDFRD.inf
+Needs=WUDFRD.NT.Services
+
+[GsDisplay_Install.NT.Wdf]
+UmdfService=GsDisplay,GsDisplay_Install
+UmdfServiceOrder=GsDisplay
+UmdfKernelModeClientPolicy=AllowKernelModeClients
+
+[GsDisplay_Install]
+UmdfLibraryVersion=$UMDFVERSION$
+ServiceBinary=%12%\UMDF\GsDisplay.dll
+UmdfExtensions=IddCx0102
+
+[UMDriverCopy]
+GsDisplay.dll
+
+; ================= Strings =================
+
+[Strings]
+ManufacturerName="GameStreamVD"
+DiskName="GameStreamVD Virtual Display Installation Disk"
+DeviceName="GameStream Virtual Display"
+
+REG_MULTI_SZ = 0x00010000
+REG_SZ       = 0x00000000

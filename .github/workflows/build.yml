@@ -1,0 +1,91 @@
+name: Build
+
+# Runner windows-2022 sudah membawa WDK 10.1.26100 + ekstensi WDK untuk VS 2022,
+# jadi msbuild bisa langsung dipakai tanpa langkah instalasi.
+# Lihat: https://github.com/microsoft/Windows-driver-samples/blob/main/.github/Build-with-GitHub.md
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.configuration }} ${{ matrix.platform }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Release, Debug]
+        platform: [x64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: MSBuild ke PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Verifikasi toolchain
+        shell: pwsh
+        run: |
+          msbuild -version
+          $wdk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" -Directory |
+                 Sort-Object Name -Descending | Select-Object -First 1
+          Write-Host "WDK/SDK Include: $($wdk.FullName)"
+          if (-not (Test-Path (Join-Path $wdk.FullName "km\wdm.h"))) {
+            Write-Error "Header kernel (km\wdm.h) tidak ditemukan - WDK tidak terpasang"
+          }
+          if (-not (Test-Path (Join-Path $wdk.FullName "shared\iddcx.h"))) {
+            Write-Error "iddcx.h tidak ditemukan - komponen IddCx WDK tidak terpasang"
+          }
+
+      - name: Restore NuGet (kalau ada)
+        shell: pwsh
+        run: |
+          if (Test-Path .\packages.config) { nuget restore .\GameStreamVD.sln }
+          else { Write-Host "Tidak ada packages.config, dilewati." }
+
+      - name: Build
+        run: >
+          msbuild GameStreamVD.sln
+          /t:Rebuild
+          /p:Configuration=${{ matrix.configuration }}
+          /p:Platform=${{ matrix.platform }}
+          /p:SignMode=Off
+          /m
+          /nologo
+          /verbosity:normal
+          /warnaserror:false
+
+      - name: Ringkasan artefak
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Include *.dll,*.exe,*.inf,*.cat,*.pdb -Path .\build -ErrorAction SilentlyContinue |
+            Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Upload artefak
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameStreamVD-${{ matrix.configuration }}-${{ matrix.platform }}
+          path: |
+            build/**/*.dll
+            build/**/*.exe
+            build/**/*.inf
+            build/**/*.cat
+            build/**/*.pdb
+          if-no-files-found: warn
+
+  # Uji unit portabel (generator EDID) di Linux - cepat dan tidak butuh WDK.
+  edid-test:
+    name: Unit test EDID
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & jalankan test
+        working-directory: tests
+        run: |
+          g++ -std=c++17 -Wall -Wextra -I .. -I shim -o test_edid test_edid.cpp
+          ./test_edid
