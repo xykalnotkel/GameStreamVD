@@ -60,4 +60,4 @@ Environment:
 
 // TODO: Use a unique driver tracing ID here,
 // see https://docs.microsoft.com/en-us/windows-hardware/drivers/devtest/adding-wpp-software-tracing-to-a-windows-driver
-#define MYDRIVER_TRACING_ID L"Microsoft\\UMDF2.25\\GsDisplay v1.0"
+#define MYDRIVER_TRACING_ID L"Microsoft\\UMDF2.25\\IddSampleDriver v1.0"

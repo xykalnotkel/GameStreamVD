@@ -52,6 +52,14 @@ jobs:
       #   A gagal            -> masalah konfigurasi proyek / environment.
       #   A sukses, B gagal  -> masalahnya GsVirtual.h.
       #   dua-duanya sukses  -> masalahnya di Driver.h/Driver.cpp/FrameSink.
+      - name: Ambil sampel Microsoft untuk pembanding
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (-not (Test-Path D:\wds)) {
+            git clone --depth 1 https://github.com/microsoft/Windows-driver-samples.git D:\wds
+          }
+
       - name: Probe A - driver UMDF minimal
         continue-on-error: true
         run: >
@@ -59,12 +67,27 @@ jobs:
           /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
           /p:InfVerifEnabled=false /nologo /verbosity:minimal
 
-      - name: Probe B - minimal + GsVirtual.h
+      # Sumber SAMA (ProbeA.cpp), konfigurasi proyek upstream apa adanya.
+      # Kalau ini sukses sedangkan ProbeA gagal -> penyebabnya konfigurasi proyek.
+      - name: Probe C - ProbeA.cpp dengan vcxproj upstream
         continue-on-error: true
         run: >
-          msbuild ci-probe\ProbeB.vcxproj /t:Rebuild
+          msbuild ci-probe\UpstreamCfg.vcxproj /t:Rebuild
           /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
-          /p:InfVerifEnabled=false /nologo /verbosity:minimal
+          /nologo /verbosity:minimal
+
+      # Ulangi build sampel Microsoft dengan Rebuild (sebelumnya pakai Build) dan
+      # pastikan DLL-nya benar-benar ada, supaya "sukses" tadi bukan palsu.
+      - name: Probe D - IddSampleDriver asli (Rebuild + cek DLL)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          msbuild D:\wds\video\IndirectDisplay\IddSampleDriver.sln /t:Rebuild `
+            /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off `
+            /p:InfVerifEnabled=false /nologo /verbosity:minimal
+          Write-Host "EXITCODE = $LASTEXITCODE"
+          Get-ChildItem -Recurse D:\wds\video\IndirectDisplay -Filter *.dll -ErrorAction SilentlyContinue |
+            Select-Object FullName, Length | Format-Table -AutoSize
 
       # ---- AKHIR EKSPERIMEN -----------------------------------------------
 
