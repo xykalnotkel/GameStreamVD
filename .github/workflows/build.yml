@@ -111,6 +111,6 @@ jobs:
 
       - name: Build & jalankan test
         run: |
-          g++ -std=c++17 -Wall -Wextra -I include -I driver/DisplayDriver \
+          g++ -std=c++17 -Wall -Wextra -I tests/shim -I . -I include -I driver/DisplayDriver \
               tests/test_edid.cpp -o /tmp/test_edid
           /tmp/test_edid
