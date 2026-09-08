@@ -115,6 +115,17 @@ jobs:
             Write-Host ("{0,-16} {1}" -f $t, $(if ($hit) { $hit.FullName } else { "TIDAK ADA" }))
           }
 
+      # ProbeF: sumber kita (Driver.cpp + FrameSink.cpp) dikompilasi dengan
+      # vcxproj IddSampleDriver upstream apa adanya. Kalau ini gagal sementara
+      # Probe D (sumber upstream, vcxproj upstream) sukses, penyebabnya ada di
+      # header kita. Kalau ini sukses, penyebabnya ada di vcxproj kita.
+      - name: Probe F - sumber kita dengan vcxproj upstream
+        continue-on-error: true
+        run: >
+          msbuild ci-probe\ProbeF.vcxproj /t:Rebuild
+          /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
+          /nologo /verbosity:normal
+
       - name: Cek nama API IddCx di header WDK
         shell: pwsh
         continue-on-error: true
