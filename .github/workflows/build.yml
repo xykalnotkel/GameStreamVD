@@ -103,11 +103,11 @@ jobs:
         with:
           name: GameStreamVD-${{ matrix.configuration }}-${{ matrix.platform }}
           path: |
-            x64/**/*.dll
-            x64/**/*.pdb
+            x64/${{ matrix.configuration }}/GsDisplay.dll
             x64/${{ matrix.configuration }}/GsDisplay.inf
-            x64/**/*.cat
-            x64/**/gsvd-test.cer
+            x64/${{ matrix.configuration }}/GsDisplay.cat
+            x64/${{ matrix.configuration }}/GsDisplay.pdb
+            x64/${{ matrix.configuration }}/gsvd-test.cer
             build/**/*.exe
             build/**/*.pdb
             tools/install.bat

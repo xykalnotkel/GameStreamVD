@@ -182,6 +182,15 @@ Write-Host '[sign] selesai. Isi paket untuk pengguna:'
 foreach ($f in @('GsDisplay.dll', 'GsDisplay.inf', 'GsDisplay.cat', 'gsvd-test.cer')) {
     Write-Host ("        " + $f)
 }
+# Salinan DLL yang belum ditandatangani masih ada di dua tempat: folder paket
+# yang dibuat WDK (x64\<Config>\GsDisplay\) dan folder staging. Kalau ikut
+# terunduh dan tertukar dengan yang sudah ditandatangani, hash-nya tidak cocok
+# dengan katalog dan Windows menolak dengan Code 52. Jadi dihapus.
+Write-Host '[sign] menghapus salinan DLL yang belum ditandatangani'
+foreach ($d in @((Join-Path $outDir 'GsDisplay'), $stage)) {
+    if (Test-Path $d) { Remove-Item $d -Recurse -Force }
+}
+
 Write-Host ''
 Write-Host '[sign] Sertifikat ini uji coba. Di PC tujuan harus:'
 Write-Host '         1. Secure Boot dimatikan di BIOS/UEFI'
