@@ -24,7 +24,13 @@ Environment:
 #include <windows.h>
 #include <d3d11_2.h>
 #include <dxgi1_5.h>
-#include <wrl.h>
+
+/* Hanya ComPtr yang dipakai di sini, jadi tarik wrl/client.h saja.
+   <wrl.h> yang lengkap ikut menarik winrt/wrl/wrappers/corewrappers.h, dan
+   corewrappers.h memakai STATUS_WAIT_0. Konstanta itu tidak selalu ada saat
+   sebuah file .cpp driver hanya meng-include header ini (Driver.cpp selamat
+   karena Driver.h meng-include wudfwdm.h lebih dulu). */
+#include <wrl/client.h>
 #include <memory>
 
 #include "GsVirtual.h"
