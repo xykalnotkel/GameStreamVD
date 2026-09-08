@@ -20,9 +20,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ProbeA.cpp" />
-    <ClCompile Include="ProbeA.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Trace.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A1000001-0000-4000-8000-0000000000A1}</ProjectGuid>
