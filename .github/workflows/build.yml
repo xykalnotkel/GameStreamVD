@@ -105,11 +105,13 @@ jobs:
           path: |
             x64/**/*.dll
             x64/**/*.pdb
+            x64/${{ matrix.configuration }}/GsDisplay.inf
             x64/**/*.cat
             x64/**/gsvd-test.cer
             build/**/*.exe
             build/**/*.pdb
-            driver/DisplayDriver/GsDisplay.inf
+            tools/install.bat
+            tools/Diagnose.ps1
           if-no-files-found: error
 
   # Uji unit portabel (generator EDID) di Linux - cepat dan tidak butuh WDK.

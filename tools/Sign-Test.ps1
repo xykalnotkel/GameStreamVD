@@ -29,7 +29,13 @@ param(
 
     [string]$Platform = 'x64',
 
-    [string]$Subject = 'CN=GameStreamVD Test Signing'
+    [string]$Subject = 'CN=GameStreamVD Test Signing',
+
+    # Versi yang ditulis stampinf ke DriverVer dan UmdfLibraryVersion.
+    # UMDF 2.25 adalah yang dipakai toolset WindowsUserModeDriver10.0 di
+    # WDK 10.0.26100 (lihat baris "Using UMDF 2.25" pada log build).
+    [string]$DriverVersion = '1.0.0.0',
+    [string]$UmdfVersion   = '2.25.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -88,54 +94,69 @@ $signtool = Find-KitTool 'signtool.exe'
 if (-not $signtool) { throw 'signtool.exe tidak ditemukan - install WDK atau Windows SDK.' }
 Write-Host "[sign] signtool: $signtool"
 
+$stampinf = Find-KitTool 'stampinf.exe'
+if (-not $stampinf) { throw 'stampinf.exe tidak ditemukan - dibutuhkan untuk mengisi $ARCH$ dan DriverVer.' }
+Write-Host "[sign] stampinf: $stampinf"
+
 $inf2cat = Find-KitTool 'inf2cat.exe'
-if ($inf2cat) { Write-Host "[sign] inf2cat : $inf2cat" }
-else          { Write-Host '[sign] inf2cat tidak ada - katalog dilewati, INF ditandatangani langsung.' }
+if (-not $inf2cat) { throw 'inf2cat.exe tidak ditemukan - dibutuhkan untuk membuat katalog.' }
+Write-Host "[sign] inf2cat : $inf2cat"
 
 # ---------------------------------------------------------------- 3. tandatangani DLL
 Write-Host "[sign] menandatangani $dll"
 & $signtool sign /v /sha1 $cert.Thumbprint /fd sha256 /t http://timestamp.digicert.com $dll
 if ($LASTEXITCODE -ne 0) { throw "signtool gagal untuk DLL (kode $LASTEXITCODE)" }
 
-# ---------------------------------------------------------------- 4. katalog + INF
-if ($inf2cat) {
-    # inf2cat membaca INF lalu menghitung hash semua berkas yang dirujuknya,
-    # jadi DLL harus sudah ditandatangani dan berada di folder yang sama.
-    $stage = Join-Path $outDir 'package'
-    New-Item -ItemType Directory -Force -Path $stage | Out-Null
-    Copy-Item $dll -Destination $stage -Force
-    Copy-Item $inf -Destination $stage -Force
+# ---------------------------------------------------------------- 4. stampinf
+# INF sumber masih berupa template: $ARCH$, $UMDFVERSION$ dan DriverVer kosong.
+# stampinf yang mengisinya. Tanpa ini inf2cat menolak dengan
+# "does not have NTAMD64 decorated model sections".
+$stage = Join-Path $outDir 'package'
+New-Item -ItemType Directory -Force -Path $stage | Out-Null
+Copy-Item $dll -Destination $stage -Force
 
-    Write-Host "[sign] membuat katalog di $stage"
-    & $inf2cat /driver:$stage /os:10_X64 /verbose
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warning "inf2cat gagal (kode $LASTEXITCODE) - lanjut menandatangani INF langsung."
-    } else {
-        $cat = Join-Path $stage 'GsDisplay.cat'
-        if (Test-Path $cat) {
-            & $signtool sign /v /sha1 $cert.Thumbprint /fd sha256 /t http://timestamp.digicert.com $cat
-            if ($LASTEXITCODE -ne 0) { throw "signtool gagal untuk katalog (kode $LASTEXITCODE)" }
-            Copy-Item $cat -Destination $outDir -Force
-            Write-Host "[sign] katalog: $outDir\GsDisplay.cat"
-        }
-    }
+$stamped = Join-Path $stage 'GsDisplay.inf'
+Copy-Item $inf -Destination $stamped -Force
+
+$arch = if ($Platform -eq 'x64') { 'amd64' } else { $Platform.ToLowerInvariant() }
+Write-Host "[sign] stampinf: mengisi macro INF (arch=$arch, UMDF=$UmdfVersion)"
+& $stampinf -f $stamped -a $arch -d '*' -v $DriverVersion -u $UmdfVersion
+if ($LASTEXITCODE -ne 0) { throw "stampinf gagal (kode $LASTEXITCODE)" }
+
+Write-Host '[sign] hasil stamping:'
+foreach ($k in @('DriverVer', 'UmdfLibraryVersion', '[Standard')) {
+    $line = Select-String -Path $stamped -Pattern $k | Select-Object -First 1
+    if ($line) { Write-Host ("        " + $line.Line.Trim()) }
 }
 
-Write-Host "[sign] menandatangani INF"
-& $signtool sign /v /sha1 $cert.Thumbprint /fd sha256 $inf
-if ($LASTEXITCODE -ne 0) { throw "signtool gagal untuk INF (kode $LASTEXITCODE)" }
+# ---------------------------------------------------------------- 5. katalog
+# inf2cat membaca INF lalu menghitung hash setiap berkas yang dirujuknya,
+# jadi DLL harus sudah ditandatangani dan sefolder dengan INF.
+Write-Host "[sign] membuat katalog di $stage"
+& $inf2cat /driver:$stage /os:10_X64 /verbose
+if ($LASTEXITCODE -ne 0) { throw "inf2cat gagal (kode $LASTEXITCODE)" }
 
-Copy-Item $inf -Destination $outDir -Force
+$cat = Join-Path $stage 'GsDisplay.cat'
+if (-not (Test-Path $cat)) { throw "inf2cat tidak menghasilkan $cat" }
 
-# ---------------------------------------------------------------- 5. verifikasi
+& $signtool sign /v /sha1 $cert.Thumbprint /fd sha256 /t http://timestamp.digicert.com $cat
+if ($LASTEXITCODE -ne 0) { throw "signtool gagal untuk katalog (kode $LASTEXITCODE)" }
+
+# INF dan katalog hasil stamping adalah yang dipakai pengguna - bukan template.
+Copy-Item $stamped -Destination $outDir -Force
+Copy-Item $cat     -Destination $outDir -Force
+
+# ---------------------------------------------------------------- 6. verifikasi
 Write-Host ''
 Write-Host '[sign] hasil verifikasi:'
-foreach ($f in @($dll, $inf, (Join-Path $outDir 'GsDisplay.cat'))) {
-    if (-not (Test-Path $f)) { continue }
+foreach ($f in @($dll, (Join-Path $outDir 'GsDisplay.inf'), (Join-Path $outDir 'GsDisplay.cat'))) {
     $s = Get-AuthenticodeSignature $f
     Write-Host ("  {0,-16} {1}" -f (Split-Path $f -Leaf), $s.Status)
     if ($s.Status -ne 'Valid') { throw "$f tidak Valid: $($s.Status)" }
 }
 
 Write-Host ''
-Write-Host '[sign] selesai.'
+Write-Host '[sign] selesai. Isi paket yang dipakai pengguna:'
+foreach ($f in @('GsDisplay.dll', 'GsDisplay.inf', 'GsDisplay.cat', 'gsvd-test.cer')) {
+    Write-Host ("        " + $f)
+}
