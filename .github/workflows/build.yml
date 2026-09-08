@@ -1,14 +1,10 @@
 name: Build
 
-# Runner windows-2022 sudah membawa WDK 10.1.26100 + ekstensi WDK untuk VS 2022,
-# jadi msbuild bisa langsung dipakai tanpa langkah instalasi.
-# Lihat: https://github.com/microsoft/Windows-driver-samples/blob/main/.github/Build-with-GitHub.md
-
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -30,7 +26,6 @@ jobs:
 
       - name: Verifikasi toolchain
         shell: pwsh
-        continue-on-error: true
         run: |
           msbuild -version
           # Hanya folder bernama versi (10.0.xxxxx.x); folder "wdf" dsb. diabaikan.
@@ -38,142 +33,19 @@ jobs:
                  Where-Object { $_.Name -match '^10\.0\.' } |
                  Sort-Object { [version]$_.Name } -Descending
           foreach ($d in $inc) { Write-Host "Kit Include: $($d.Name)" }
-          $newest = $inc | Select-Object -First 1
-          if ($newest) {
-            foreach ($h in @("km\wdm.h", "shared\iddcx.h", "um\windows.h")) {
-              $p = Join-Path $newest.FullName $h
-              Write-Host ("{0,-20} {1}" -f $h, (Test-Path $p))
-            }
-          }
-
-      # ---- EKSPERIMEN: pisahkan penyebab tabrakan header -------------------
-      # ProbeA = driver UMDF minimal, tanpa header proyek apa pun.
-      # ProbeB = ProbeA + GsVirtual.h pada posisi yang sama seperti Driver.h.
-      #   A gagal            -> masalah konfigurasi proyek / environment.
-      #   A sukses, B gagal  -> masalahnya GsVirtual.h.
-      #   dua-duanya sukses  -> masalahnya di Driver.h/Driver.cpp/FrameSink.
-      - name: Ambil sampel Microsoft untuk pembanding
-        if: false
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          if (-not (Test-Path D:\wds)) {
-            git clone --depth 1 https://github.com/microsoft/Windows-driver-samples.git D:\wds
-          }
-
-      # ProbeE: hanya #include Driver.h, tanpa badan. Kalau ini gagal, penyebab
-      # tabrakan header ada di Driver.h / GsVirtual.h / Edid.h / FrameSink.h.
-      - name: Probe E - include Driver.h saja
-        if: false
-        continue-on-error: true
-        run: >
-          msbuild ci-probe\ProbeE.vcxproj /t:Rebuild
-          /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
-          /p:InfVerifEnabled=false /nologo /verbosity:minimal
-
-      - name: Probe A - driver UMDF minimal
-        if: false
-        continue-on-error: true
-        run: >
-          msbuild ci-probe\ProbeA.vcxproj /t:Rebuild
-          /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
-          /p:InfVerifEnabled=false /nologo /verbosity:minimal
-
-      # Sumber SAMA (ProbeA.cpp), konfigurasi proyek upstream apa adanya.
-      # Kalau ini sukses sedangkan ProbeA gagal -> penyebabnya konfigurasi proyek.
-      - name: Probe C - ProbeA.cpp dengan vcxproj upstream
-        if: false
-        continue-on-error: true
-        run: >
-          msbuild ci-probe\UpstreamCfg.vcxproj /t:Rebuild
-          /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
-          /nologo /verbosity:minimal
-
-      # Ulangi build sampel Microsoft dengan Rebuild (sebelumnya pakai Build) dan
-      # pastikan DLL-nya benar-benar ada, supaya "sukses" tadi bukan palsu.
-      - name: Probe D - IddSampleDriver asli (Rebuild + cek DLL)
-        if: false
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          msbuild D:\wds\video\IndirectDisplay\IddSampleDriver.sln /t:Rebuild `
-            /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off `
-            /p:InfVerifEnabled=false /nologo /verbosity:minimal
-          Write-Host "EXITCODE = $LASTEXITCODE"
-          Get-ChildItem -Recurse D:\wds\video\IndirectDisplay -Filter *.dll -ErrorAction SilentlyContinue |
-            Select-Object FullName, Length | Format-Table -AutoSize
-
-      # ---- AKHIR EKSPERIMEN -----------------------------------------------
-
-
-      - name: Perkakas WDK yang tersedia di image
-        shell: pwsh
-        run: |
-          $bin = "C:\Program Files (x86)\Windows Kits\10\bin"
-          foreach ($t in @("stampinf.exe","infverif.exe","Inf2Cat.exe","signtool.exe","tracewpp.exe")) {
-            $hit = Get-ChildItem $bin -Recurse -Filter $t -ErrorAction SilentlyContinue | Select-Object -First 1
-            Write-Host ("{0,-16} {1}" -f $t, $(if ($hit) { $hit.FullName } else { "TIDAK ADA" }))
-          }
-
-      # ProbeF: sumber kita (Driver.cpp + FrameSink.cpp) dikompilasi dengan
-      # vcxproj IddSampleDriver upstream apa adanya. Kalau ini gagal sementara
-      # Probe D (sumber upstream, vcxproj upstream) sukses, penyebabnya ada di
-      # header kita. Kalau ini sukses, penyebabnya ada di vcxproj kita.
-      - name: Probe F - sumber kita dengan vcxproj upstream
-        continue-on-error: true
-        run: >
-          msbuild ci-probe\ProbeF.vcxproj /t:Rebuild
-          /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
-          /nologo /verbosity:normal
-
-      - name: Cek nama API IddCx di header WDK
-        shell: pwsh
-        continue-on-error: true
-        run: |
-          $root = "C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0"
-          $hit = Get-ChildItem $root -Recurse -Filter iddcx.h -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $hit) { Write-Host "iddcx.h TIDAK DITEMUKAN"; exit 0 }
-          Write-Host "iddcx.h = $($hit.FullName)"
-          Write-Host "--- EvtIddCxDeviceIoControl + tipe callback ---"
-          Select-String -Path $hit.FullName -Pattern 'EvtIddCxDeviceIoControl|DEVICE_IO_CONTROL' |
-            ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
-          Write-Host "--- IddCxMonitorDeparture ---"
-          Select-String -Path $hit.FullName -Pattern 'MonitorDeparture|MONITORDEPARTURE' |
-            ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
-          Write-Host "--- IddCx.h baris 508-535 ---"
-          (Get-Content $hit.FullName)[507..534] | ForEach-Object { Write-Host $_ }
-          Write-Host "--- wudfwdm.h: STATUS_ yang didefinisikan ---"
-          $w = Get-ChildItem $root -Recurse -Filter wudfwdm.h -ErrorAction SilentlyContinue | Select-Object -First 1
-          Write-Host "wudfwdm.h = $($w.FullName)"
-          Select-String -Path $w.FullName -Pattern 'STATUS_' |
-            ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
-          Write-Host "--- corewrappers.h baris 630-682 ---"
-          $cw = Join-Path $root "winrt\wrl\wrappers\corewrappers.h"
-          (Get-Content $cw)[629..681] | ForEach-Object { Write-Host $_ }
-          Write-Host "--- #define STATUS_WAIT_0 di seluruh kit ---"
-          Get-ChildItem $root -Recurse -Filter *.h -ErrorAction SilentlyContinue |
-            Select-String -Pattern '#define\s+STATUS_WAIT_0' -List |
-            ForEach-Object { Write-Host ("{0}:{1}" -f $_.Path, $_.LineNumber) }
 
       - name: Restore NuGet (kalau ada)
         shell: pwsh
         run: |
           if (Test-Path .\packages.config) { nuget restore .\GameStreamVD.sln }
-          else { Write-Host "Tidak ada packages.config, dilewati." }
 
       - name: Build
         run: >
-          msbuild GameStreamVD.sln
-          /t:Rebuild
+          msbuild GameStreamVD.sln /t:Rebuild
           /p:Configuration=${{ matrix.configuration }}
           /p:Platform=${{ matrix.platform }}
           /p:SignMode=Off
-          /p:InfVerifEnabled=false
-          /m
-          /nologo
-          /verbosity:normal
-          /warnaserror:false
-
+          /nologo /verbosity:minimal /maxcpucount
 
       - name: Verifikasi INF (infverif)
         shell: pwsh
@@ -186,26 +58,29 @@ jobs:
             Write-Host "InfVerif: $($verif.FullName)"
             & $verif.FullName $inf
           } else {
-            Write-Host "InfVerif.exe tidak ditemukan di image ini - dilewati."
+            Write-Host "InfVerif.exe tidak ada di image ini - dilewati."
           }
 
       - name: Ringkasan artefak
         shell: pwsh
         run: |
-          Get-ChildItem -Recurse -Include *.dll,*.exe,*.inf,*.cat,*.pdb -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '\\(\.git|packages)\\' } |
+          Get-ChildItem -Recurse -File -Include *.dll,*.exe,*.inf,*.cat -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\\.git\\' } |
             Select-Object FullName, Length | Format-Table -AutoSize
 
-      # Jangan percaya "Build succeeded" saja - pastikan biner benar-benar ada.
+      # "Build succeeded" saja tidak cukup - pastikan biner benar-benar terbentuk.
       - name: Cek hasil build ada
         shell: pwsh
         run: |
           $ok = $true
-          foreach ($f in @("driver\\DisplayDriver\\x64\\${{ matrix.configuration }}\\GsDisplay.dll",
-                           "build\\x64\\${{ matrix.configuration }}\\GsDevCtl.exe")) {
+          $expect = @(
+            "x64\${{ matrix.configuration }}\GsDisplay.dll",
+            "build\x64\${{ matrix.configuration }}\GsDevCtl.exe"
+          )
+          foreach ($f in $expect) {
             if (Test-Path $f) {
               $len = (Get-Item $f).Length
-              Write-Host ("OK   {0}  ({1} byte)" -f $f, $len)
+              Write-Host ("OK      {0}  ({1} byte)" -f $f, $len)
               if ($len -lt 4096) { $ok = $false }
             } else {
               Write-Host ("HILANG  {0}" -f $f)
@@ -219,22 +94,23 @@ jobs:
         with:
           name: GameStreamVD-${{ matrix.configuration }}-${{ matrix.platform }}
           path: |
-            build/**/*.dll
+            x64/**/*.dll
+            x64/**/*.pdb
             build/**/*.exe
             build/**/*.pdb
-            driver/DisplayDriver/x64/**/*.dll
-            driver/DisplayDriver/x64/**/*.pdb
             driver/DisplayDriver/GsDisplay.inf
-          if-no-files-found: warn
+          if-no-files-found: error
 
   # Uji unit portabel (generator EDID) di Linux - cepat dan tidak butuh WDK.
   edid-test:
     name: Unit test EDID
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build & jalankan test
-        working-directory: tests
         run: |
-          g++ -std=c++17 -Wall -Wextra -I .. -I shim -o test_edid test_edid.cpp
-          ./test_edid
+          g++ -std=c++17 -Wall -Wextra -I include -I driver/DisplayDriver \
+              tests/test_edid.cpp -o /tmp/test_edid
+          /tmp/test_edid
