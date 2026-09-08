@@ -119,16 +119,18 @@ jobs:
         shell: pwsh
         continue-on-error: true
         run: |
-          $h = "C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\iddcx.h"
-          Write-Host "ada: $(Test-Path $h)"
-          Write-Host "--- EvtIddCxDeviceIoControl / tipe callback-nya ---"
-          Select-String -Path $h -Pattern 'EvtIddCxDeviceIoControl|PFN_IDD_CX_DEVICE_IO_CONTROL|EVT_IDD_CX_DEVICE_IO_CONTROL' |
+          $root = "C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0"
+          $hit = Get-ChildItem $root -Recurse -Filter iddcx.h -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $hit) { Write-Host "iddcx.h TIDAK DITEMUKAN"; exit 0 }
+          Write-Host "iddcx.h = $($hit.FullName)"
+          Write-Host "--- EvtIddCxDeviceIoControl + tipe callback ---"
+          Select-String -Path $hit.FullName -Pattern 'EvtIddCxDeviceIoControl|DEVICE_IO_CONTROL' |
             ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
-          Write-Host "--- IddCxMonitorDeparture + IDARG_OUT_MONITORDEPARTURE ---"
-          Select-String -Path $h -Pattern 'MonitorDeparture|MONITORDEPARTURE' |
+          Write-Host "--- IddCxMonitorDeparture ---"
+          Select-String -Path $hit.FullName -Pattern 'MonitorDeparture|MONITORDEPARTURE' |
             ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
-          Write-Host "--- di mana STATUS_WAIT_0 didefinisikan ---"
-          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0" -Recurse -Filter *.h -ErrorAction SilentlyContinue |
+          Write-Host "--- #define STATUS_WAIT_0 di seluruh kit ---"
+          Get-ChildItem $root -Recurse -Filter *.h -ErrorAction SilentlyContinue |
             Select-String -Pattern '#define\s+STATUS_WAIT_0' -List |
             ForEach-Object { Write-Host ("{0}:{1}" -f $_.Path, $_.LineNumber) }
 
