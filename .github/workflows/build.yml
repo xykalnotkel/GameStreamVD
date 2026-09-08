@@ -61,6 +61,15 @@ jobs:
             git clone --depth 1 https://github.com/microsoft/Windows-driver-samples.git D:\wds
           }
 
+      # ProbeE: hanya #include Driver.h, tanpa badan. Kalau ini gagal, penyebab
+      # tabrakan header ada di Driver.h / GsVirtual.h / Edid.h / FrameSink.h.
+      - name: Probe E - include Driver.h saja
+        continue-on-error: true
+        run: >
+          msbuild ci-probe\ProbeE.vcxproj /t:Rebuild
+          /p:Configuration=Release /p:Platform=x64 /p:SignMode=Off
+          /p:InfVerifEnabled=false /nologo /verbosity:minimal
+
       - name: Probe A - driver UMDF minimal
         if: false
         continue-on-error: true
