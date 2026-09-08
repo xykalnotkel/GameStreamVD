@@ -27,9 +27,6 @@
     <ClInclude Include="FrameSink.h" />
     <ClInclude Include="Trace.h" />
   </ItemGroup>
-  <ItemGroup>
-    <Inf Include="IddSampleDriver.inf" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A1000004-0000-4000-8000-0000000000E5}</ProjectGuid>
     <TemplateGuid>{32909489-7be5-497b-aafa-db6669d9b44b}</TemplateGuid>
