@@ -63,7 +63,17 @@ sudah membawa **WDK 10.1.26100** dan **ekstensi WDK untuk VS 2022**, jadi
 `msbuild` langsung jalan tanpa instalasi tambahan.
 
 Push ke `main`, lalu buka tab **Actions** → unduh artefak
-`GameStreamVD-Release-x64`.
+`GameStreamVD-Release-x64`. Isi artefak:
+
+| Berkas | Asal |
+|---|---|
+| `GsDisplay.dll` | driver display UMDF/IddCx (52 KB, Release x64) |
+| `GsDevCtl.exe` | CLI untuk menambah/melepas monitor virtual |
+| `GsDisplay.inf` | INF untuk instalasi driver |
+| `*.pdb` | simbol untuk debugging |
+
+Langkah **Cek hasil build ada** di workflow sengaja memverifikasi kedua biner
+benar-benar terbentuk, bukan hanya percaya pada "Build succeeded".
 
 ### Cara B — Lokal (Windows)
 
@@ -71,15 +81,21 @@ Push ke `main`, lalu buka tab **Actions** → unduh artefak
 2. **Windows Driver Kit (WDK)** — dari *Individual components* cari "Windows Driver Kit"
 3. Buka `GameStreamVD.sln`, pilih `Release | x64`, Build
 
-Hasil ada di `build\x64\Release\`.
+Hasilnya: `GsDisplay.dll` di `x64\Release\` (proyek driver memakai konvensi
+WDK) dan `GsDevCtl.exe` di `build\x64\Release\`.
 
 ### Uji unit generator EDID (Linux/macOS, tanpa WDK)
 
 ```bash
-cd tests
-g++ -std=c++17 -Wall -Wextra -I .. -I shim -o test_edid test_edid.cpp
-./test_edid
+# jalankan dari root repo
+g++ -std=c++17 -Wall -Wextra -I tests/shim -I . -I include -I driver/DisplayDriver \
+    tests/test_edid.cpp -o /tmp/test_edid
+/tmp/test_edid
 ```
+
+`tests/shim` harus lebih dulu di include path supaya `<windows.h>` yang ditarik
+`Edid.h` adalah shim-nya, dan root repo harus ada supaya
+`"driver/DisplayDriver/Edid.h"` ketemu.
 
 Ini memverifikasi EDID yang dihasilkan driver: header, checksum, dan decode
 mode dari DTD (1080p60, 1080p120, 1440p144, 4K60, 720p165).
@@ -145,6 +161,40 @@ Proyek `driver/DisplayDriverPackage/GsDisplayPackage.vcxproj` adalah template
 driver package (menjalankan `inf2cat` + `signtool`). Proyek ini **sengaja belum
 dimasukkan ke solution** karena `inf2cat` menolak INF tanpa `DriverVer` yang
 di-stamp. Aktifkan setelah build driver hijau.
+
+---
+
+## Status komponen
+
+| Komponen | Status |
+|---|---|
+| Driver display virtual (IddCx/UMDF) | **Selesai**, compile hijau di CI (Release + Debug x64) |
+| Generator EDID runtime | **Selesai**, 8/8 unit test lulus |
+| `GsDevCtl.exe` (tambah/lepas monitor via IOCTL) | **Selesai**, compile hijau di CI |
+| Transport frame ke user-mode (section `Global\`) | Selesai di kode, **belum diuji di mesin nyata** |
+| Driver audio (speaker render) | Belum — rencana di `driver/AudioDriver/README.md` |
+| Driver mikrofon (capture) | Belum — rencana di `driver/AudioDriver/README.md` |
+
+### Jebakan build yang sudah dibayar mahal
+
+`FrameSink.h` tadinya meng-include `<wrl.h>` lengkap. Header itu menarik
+`winrt/wrl/wrappers/corewrappers.h`, yang memakai `STATUS_WAIT_0` (baris 638
+dan 676). `Driver.cpp` tidak pernah kena masalah karena `Driver.h`
+meng-include `wudfwdm.h` lebih dulu sehingga konstantanya ada; `FrameSink.cpp`
+meng-include `FrameSink.h` sebagai header pertama, jadi `STATUS_WAIT_0` tidak
+terdefinisi dan muncul ratusan error membingungkan di header sistem
+(`bad_alloc redefinition`, `cstdio` `C2039/C2873`, `vcruntime_typeinfo.h`).
+
+Karena `FrameSink` hanya memakai `ComPtr`, solusinya `<wrl/client.h>` — bukan
+`<wrl.h>`. Pelajarannya: error beruntun di header sistem hampir selalu berarti
+ada satu konstanta/tipe yang hilang lebih awal, bukan header-nya yang rusak.
+
+Dua jebakan lain yang sudah diperbaiki: item `<Inf>` masih menunjuk
+`IddSampleDriver.inf` bawaan template (bikin `Rebuild` mati di `CoreClean`
+karena `stampinf.exe` tidak ada di image CI), dan `Driver.cpp` sempat memakai
+`EVT_WDF_IO_QUEUE_EVT_IO_DEVICE_CONTROL` padahal slot
+`IDD_CX_CLIENT_CONFIG.EvtIddCxDeviceIoControl` bertipe
+`PFN_IDD_CX_DEVICE_IO_CONTROL` dengan parameter pertama `WDFDEVICE`.
 
 ---
 
