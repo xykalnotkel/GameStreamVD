@@ -115,6 +115,23 @@ jobs:
             Write-Host ("{0,-16} {1}" -f $t, $(if ($hit) { $hit.FullName } else { "TIDAK ADA" }))
           }
 
+      - name: Cek nama API IddCx di header WDK
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $h = "C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared\iddcx.h"
+          Write-Host "ada: $(Test-Path $h)"
+          Write-Host "--- EvtIddCxDeviceIoControl / tipe callback-nya ---"
+          Select-String -Path $h -Pattern 'EvtIddCxDeviceIoControl|PFN_IDD_CX_DEVICE_IO_CONTROL|EVT_IDD_CX_DEVICE_IO_CONTROL' |
+            ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
+          Write-Host "--- IddCxMonitorDeparture + IDARG_OUT_MONITORDEPARTURE ---"
+          Select-String -Path $h -Pattern 'MonitorDeparture|MONITORDEPARTURE' |
+            ForEach-Object { Write-Host ("{0,5}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
+          Write-Host "--- di mana STATUS_WAIT_0 didefinisikan ---"
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0" -Recurse -Filter *.h -ErrorAction SilentlyContinue |
+            Select-String -Pattern '#define\s+STATUS_WAIT_0' -List |
+            ForEach-Object { Write-Host ("{0}:{1}" -f $_.Path, $_.LineNumber) }
+
       - name: Restore NuGet (kalau ada)
         shell: pwsh
         run: |
