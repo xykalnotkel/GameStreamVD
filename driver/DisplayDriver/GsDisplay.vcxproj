@@ -28,8 +28,12 @@
     <ClInclude Include="FrameSink.h" />
     <ClInclude Include="Trace.h" />
   </ItemGroup>
-  <ItemGroup>
-    <Inf Include="IddSampleDriver.inf" />
+  <!-- Nama INF harus GsDisplay.inf, bukan IddSampleDriver.inf bawaan template.
+       Item ini dilewati saat build di CI karena stampinf.exe tidak tersedia di
+       image windows-2022; tanpa item ini target Rebuild mati di CoreClean
+       sebelum kompilasi. Di mesin lokal (WDK lengkap) item tetap aktif. -->
+  <ItemGroup Condition="'$(CI)' != 'true'">
+    <Inf Include="GsDisplay.inf" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{2D54CB75-8B17-4F11-97DC-847B0244CD46}</ProjectGuid>
