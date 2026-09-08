@@ -164,6 +164,16 @@ di-stamp. Aktifkan setelah build driver hijau.
 
 ---
 
+## Integrasi ke XyDesk
+
+Driver ini dibuat untuk [XyDesk](https://github.com/xykalnotkel/XyDesk)
+(remote desktop gaming, Flutter + host Rust). Panduan lengkap — layout struct
+frame, cara baca seqlock tanpa mutex, nilai IOCTL, bundling di installer, dan
+soal tanda tangan untuk rilis — ada di
+[`docs/INTEGRASI-XyDesk.md`](docs/INTEGRASI-XyDesk.md).
+
+---
+
 ## Status komponen
 
 | Komponen | Status |
