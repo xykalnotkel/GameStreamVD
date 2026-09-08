@@ -25,17 +25,31 @@
 
 #ifdef _KERNEL_MODE
 #include <ntddk.h>
-#elif defined(GSVD_NO_WINDOWS_HEADERS)
-// Dipakai oleh unit test portabel (lihat tests/).
 #else
 #include <windows.h>
-// CTL_CODE / FILE_DEVICE_UNKNOWN / METHOD_BUFFERED / FILE_ANY_ACCESS tinggal di
-// devioctl.h pada SDK modern dan TIDAK otomatis ikut lewat windows.h.
-//
-// PENTING: header ini juga dipakai driver UMDF. Jangan tarik header user-mode
-// lain ke sini - urutannya bisa bentrok dengan wudfwdm.h dan memicu C4005 yang
-// jadi error karena driver di-build dengan /WX.
+// devioctl.h menyediakan CTL_CODE dan kawan-kawannya, tetapi HANYA boleh ditarik
+// oleh aplikasi user-mode. Kalau header ini di-include dari driver UMDF,
+// devioctl.h ikut menarik winnt.h milik SDK sebelum wudfwdm.h siap, lalu
+// STATUS_WAIT_0 hilang dan CRT kernel/user bertabrakan (C2011/C2382/C2873).
+// Driver memakai fallback di bawah ini.
+#ifdef GSVD_WANT_DEVIOCTL
 #include <devioctl.h>
+#endif
+#endif
+
+// Fallback supaya IOCTL di bawah tetap bisa dipakai tanpa devioctl.h.
+#ifndef FILE_DEVICE_UNKNOWN
+#define FILE_DEVICE_UNKNOWN 0x00000022
+#endif
+#ifndef FILE_ANY_ACCESS
+#define FILE_ANY_ACCESS 0
+#endif
+#ifndef METHOD_BUFFERED
+#define METHOD_BUFFERED 0
+#endif
+#ifndef CTL_CODE
+#define CTL_CODE(DeviceType, Function, Method, Access) \
+    (((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method))
 #endif
 
 /* ========================================================================== */

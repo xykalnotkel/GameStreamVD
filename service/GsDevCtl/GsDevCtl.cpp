@@ -28,6 +28,9 @@
 #include <string.h>
 #include <wchar.h>
 
+// GSVD_WANT_DEVIOCTL: aplikasi user-mode boleh menarik devioctl.h supaya
+// CTL_CODE memakai definisi SDK asli. Driver UMDF tidak boleh.
+#define GSVD_WANT_DEVIOCTL 1
 #include "GsVirtual.h"
 
 /* GUID device interface driver. Sengaja diurai dari string lewat IIDFromString,
